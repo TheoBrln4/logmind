@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-import structlog
 import httpx
+import structlog
 
+from app.agents.embed_agent import get_chroma_client, get_embeddings, _HISTORY_COLLECTION
 from app.agents.state import AnalysisState
 from app.models.schemas import Cluster, LogEvent, LogLevel
 from config import settings
@@ -10,26 +11,75 @@ from config import settings
 logger = structlog.get_logger()
 
 _TOP_K = 6
+_HISTORY_DISTANCE_THRESHOLD = 0.3
 
 
 # ---------------------------------------------------------------------------
-# Context building from clusters
+# Context building from clusters — semantic search via ChromaDB
 # ---------------------------------------------------------------------------
 
 _ERROR_LEVELS = {LogLevel.WARNING, LogLevel.ERROR, LogLevel.CRITICAL}
+_ERROR_LEVEL_VALUES = [lvl.value for lvl in _ERROR_LEVELS]
 
 
-def build_rag_context(clusters: list[Cluster], events: list[LogEvent]) -> str:
+def build_rag_context(clusters: list[Cluster], events: list[LogEvent], chroma_collection=None) -> str:
     if not clusters or not events:
         return ""
-    
-    context = []
-    seen = set()
-    for event in events:
-        if event.level in _ERROR_LEVELS and event.message not in seen:
-            context.append(event.message)
-            seen.add(event.message)
-    return "\n".join(context[:_TOP_K * 2])
+
+    queries = [c.representative for c in clusters[:3]]
+
+    # --- Current request context ---
+    current: list[str] = []
+    if chroma_collection is None:
+        seen: set[str] = set()
+        for event in events:
+            if event.level in _ERROR_LEVELS and event.message not in seen:
+                current.append(f"· [courant] {event.message}")
+                seen.add(event.message)
+        current = current[: _TOP_K * 2]
+    else:
+        seen: set[str] = set()
+        for query in queries:
+            query_embedding = get_embeddings([query])[0]
+            results = chroma_collection.query(
+                query_embeddings=[query_embedding],
+                n_results=_TOP_K,
+                where={"level": {"$in": _ERROR_LEVEL_VALUES}},
+            )
+            for doc in results["documents"][0]:
+                if doc not in seen:
+                    current.append(f"· [courant] {doc}")
+                    seen.add(doc)
+
+    # --- Historical context from cluster_history ---
+    historical: list[str] = []
+    try:
+        hist_client = get_chroma_client()
+        hist_collection = hist_client.get_collection(_HISTORY_COLLECTION)
+        seen_hist: set[str] = set()
+        for query in queries:
+            query_embedding = get_embeddings([query])[0]
+            results = hist_collection.query(
+                query_embeddings=[query_embedding],
+                n_results=_TOP_K,
+            )
+            for doc, distance, meta in zip(
+                results["documents"][0],
+                results["distances"][0],
+                results["metadatas"][0],
+            ):
+                if distance < _HISTORY_DISTANCE_THRESHOLD and doc not in seen_hist:
+                    date = meta.get("created_at", "")[:10]
+                    root_cause_type = meta.get("root_cause_type", "")
+                    suffix = f" — type: {root_cause_type}" if root_cause_type else ""
+                    historical.append(f"· [historique - {date}] {doc}{suffix}")
+                    seen_hist.add(doc)
+    except Exception:
+        pass  # cluster_history not yet populated
+
+    all_context = current[:_TOP_K] + historical[:_TOP_K]
+    logger.info("rca.rag_context", n_current=len(current), n_historical=len(historical))
+    return "\n".join(all_context)
 
 
 # ---------------------------------------------------------------------------
@@ -80,7 +130,7 @@ def rca_agent(state: AnalysisState) -> AnalysisState:
         logger.warning("rca.no_clusters")
         return {**state, "root_cause": "No error clusters detected."}
 
-    rag_context = build_rag_context(clusters, state["events"])
+    rag_context = build_rag_context(clusters, state["events"], state.get("chroma_collection"))
     prompt = build_prompt(clusters, rag_context)
 
     logger.info("rca.calling_llm", model=settings.ollama_model, n_clusters=len(clusters))

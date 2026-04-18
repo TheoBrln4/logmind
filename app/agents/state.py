@@ -1,4 +1,4 @@
-from typing import TypedDict
+from typing import Any, TypedDict
 
 from app.models.schemas import Cluster, LogEvent, RCAReport
 
@@ -9,3 +9,4 @@ class AnalysisState(TypedDict):
     clusters: list[Cluster]
     root_cause: str          # filled by rca_agent, consumed by report_agent
     report: RCAReport | None
+    chroma_collection: Any   # chromadb.Collection populated by embed_agent

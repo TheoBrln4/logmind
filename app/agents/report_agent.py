@@ -77,13 +77,23 @@ def parse_llm_output(data: dict, root_cause: str) -> RCAReport:
     hypotheses = (
         data.get("hypotheses")
         or data.get("hypoetheses")
+        or data.get("hypo")
         or data.get("hypothesis")
     )
-    actions = (
+    raw_actions = (
         data.get("recommended_actions")
         or data.get("remedied_actions")
         or data.get("actions")
     )
+
+    if isinstance(raw_actions, list):
+        actions = [
+            item["step"] if isinstance(item, dict) and "step" in item else str(item)
+            for item in raw_actions
+        ]
+    else:
+        actions = None
+
     return RCAReport(
         root_cause=root_cause,
         hypotheses=_safe_list(

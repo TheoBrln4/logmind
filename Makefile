@@ -22,4 +22,4 @@ docker-logs:
 	docker compose logs -f api
 
 pull-model:
-	docker compose exec ollama ollama pull tinyllama
+	docker compose exec ollama ollama pull tinyllama # Put mistral if you have enough RAM you will have better results
