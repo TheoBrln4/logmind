@@ -107,17 +107,16 @@ This helps focus the investigation on the most relevant signals.
 
 ### 4. RCA Agent
 
-The Root Cause Analysis Agent is the core of the system.
+The RCA Agent performs Retrieval-Augmented Root Cause Analysis.
 
-It combines:
+For each detected cluster:
 
-- Current incident data
-- Retrieved historical incidents
-- Contextual information
+1. A representative embedding (cluster centroid) is computed.
+2. Similar historical clusters are retrieved from ChromaDB.
+3. Historical context is combined with current log evidence.
+4. Qwen generates root cause hypotheses and remediation recommendations.
 
-to generate hypotheses about the most likely root cause.
-
-The agent uses ChromaDB to retrieve similar incidents and Qwen to reason over the gathered evidence.
+This allows LogMind to leverage past incidents when investigating new failures.
 
 ---
 
