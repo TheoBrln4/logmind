@@ -28,24 +28,30 @@ LogMind automates part of this process through a multi-agent workflow capable of
 ```mermaid
 graph TD
 
-A[Raw Logs]
+A[POST /analyze]
 --> B[Parser Agent]
 
-B --> C[Embedding Agent]
+B --> C[Embed Agent]
 
-C --> D[Pattern Agent]
+C --> D[(ChromaDB: log_events)]
 
-D --> E[RCA Agent]
+C --> E[Pattern Agent]
 
-E --> F[Report Agent]
+E --> F[RCA Agent]
 
-F --> G[Persist Agent]
+F --> G[(ChromaDB: cluster_history)]
 
-G --> H[(ChromaDB)]
+G --> F
 
-H --> E
+F --> H[Qwen]
 
-E --> I[Qwen]
+H --> I[Report Agent]
+
+I --> J[Persist Agent]
+
+J --> K[(ChromaDB: cluster_history)]
+
+K --> L[JSON RCA Report]
 ```
 
 ---
