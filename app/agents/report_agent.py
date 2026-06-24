@@ -43,7 +43,7 @@ def call_llm_report(prompt: str) -> dict:
     """Call Ollama and parse the JSON response. Returns {} on parse failure."""
     response = httpx.post(
         f"{settings.ollama_base_url}/api/generate",
-        json={"model": settings.ollama_model, "prompt": prompt, "stream": False},
+        json={"model": settings.ollama_model, "prompt": prompt, "stream": False, "format": "json", "options": {"temperature": 0, "num_predict": 250,},},
         timeout=300.0,
     )
     response.raise_for_status()
@@ -60,8 +60,8 @@ def call_llm_report(prompt: str) -> dict:
         if isinstance(parsed, list) and len(parsed) > 0:
             return parsed[0]
         return parsed
-    except json.JSONDecodeError:
-        logger.warning("report.json_parse_error", raw_preview=raw[:200])
+    except json.JSONDecodeError as exc:
+        logger.warning("report.json_parse_error", error=str(exc), raw_preview=raw[:200])
         return {}
 
 

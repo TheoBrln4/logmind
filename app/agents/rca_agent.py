@@ -8,6 +8,8 @@ from app.agents.state import AnalysisState
 from app.models.schemas import Cluster, LogEvent, LogLevel
 from config import settings
 
+from langsmith import traceable
+
 logger = structlog.get_logger()
 
 _TOP_K = 6
@@ -86,17 +88,21 @@ def build_rag_context(clusters: list[Cluster], events: list[LogEvent], chroma_co
 # Prompt construction
 # ---------------------------------------------------------------------------
 
-def build_prompt(clusters: list[Cluster], rag_context: str) -> str:
+def build_prompt(clusters: list[Cluster], rag_context: str, temporal_summary: str = "") -> str:
     cluster_summary = "\n".join(
         f"  - Cluster {c.cluster_id} ({c.size} events): {c.representative}"
         for c in clusters
+    )
+    temporal_section = (
+        f"\n\n## Temporal analysis\n{temporal_summary}" if temporal_summary else ""
     )
     return (
         "You are an expert SRE analysing a data pipeline incident.\n\n"
         "## Error clusters detected\n"
         f"{cluster_summary}\n\n"
         "## Relevant log context (retrieved)\n"
-        f"{rag_context}\n\n"
+        f"{rag_context}"
+        f"{temporal_section}\n\n"
         "Identify the root cause of this incident in 2-3 sentences. "
         "Be specific and concise.\n"
         "Root cause:"
@@ -107,11 +113,12 @@ def build_prompt(clusters: list[Cluster], rag_context: str) -> str:
 # LLM call — Ollama /api/generate
 # ---------------------------------------------------------------------------
 
+@traceable(name="call_llm")
 def call_llm(prompt: str) -> str:
     """POST to Ollama and return the generated text."""
     response = httpx.post(
         f"{settings.ollama_base_url}/api/generate",
-        json={"model": settings.ollama_model, "prompt": prompt, "stream": False},
+        json={"model": settings.ollama_model, "prompt": prompt, "stream": False, "options":{"temperature": 0, "num_predict": 180,},},
         timeout=300.0,
     )
     response.raise_for_status()
@@ -122,6 +129,7 @@ def call_llm(prompt: str) -> str:
 # LangGraph node
 # ---------------------------------------------------------------------------
 
+@traceable(name="rca_agent")
 def rca_agent(state: AnalysisState) -> AnalysisState:
     """Identify the root cause from clusters using LLM."""
     clusters = state["clusters"]
@@ -131,7 +139,7 @@ def rca_agent(state: AnalysisState) -> AnalysisState:
         return {**state, "root_cause": "No error clusters detected."}
 
     rag_context = build_rag_context(clusters, state["events"], state.get("chroma_collection"))
-    prompt = build_prompt(clusters, rag_context)
+    prompt = build_prompt(clusters, rag_context, state.get("temporal_summary", ""))
 
     logger.info("rca.calling_llm", model=settings.ollama_model, n_clusters=len(clusters))
     root_cause = call_llm(prompt)
