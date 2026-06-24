@@ -153,6 +153,7 @@ Future investigations can leverage this memory through Retrieval-Augmented Gener
 | Logging | Structlog |
 | Containerization | Docker |
 | Testing | Pytest |
+| Observability | LangSmith |
 
 ## Installation
 
@@ -189,6 +190,29 @@ docker compose ps
 ```
 
 All containers should be running before using LogMind.
+
+## Observability with LangSmith
+
+LogMind is instrumented with LangSmith to observe and debug the AI workflow.
+
+LangSmith is used to inspect:
+
+- Agent execution traces
+- LLM inputs and outputs
+- Intermediate workflow steps
+- Runtime errors
+- RCA generation behavior
+
+This makes it easier to understand how the system moves from raw logs to a generated root cause analysis report.
+
+### Environment variables
+
+Create a `.env` file at the root of the project:
+
+```env
+LANGSMITH_TRACING=true
+LANGSMITH_API_KEY=your_langsmith_api_key
+LANGSMITH_PROJECT=logmind
 
 ## Usage
 
@@ -325,5 +349,13 @@ This project explores several modern AI Engineering techniques:
 - LLM-Powered Reasoning
 - Incident Knowledge Management
 - Production APIs with FastAPI
+- LLM Observability with LangSmith
+- RAG Evaluation Awareness with RAGAS
+
+## Evaluation Note
+
+RAGAS was considered as an evaluation framework for measuring RAG quality through metrics such as faithfulness, context precision and context recall.
+
+For this proof of concept, RAGAS was not integrated directly into the runtime pipeline because LogMind prioritizes local execution with Ollama and Qwen. The project instead focuses on workflow observability with LangSmith, while keeping RAGAS as a possible offline evaluation extension.
 
 ---
