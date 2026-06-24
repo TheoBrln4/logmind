@@ -213,6 +213,7 @@ Create a `.env` file at the root of the project:
 LANGSMITH_TRACING=true
 LANGSMITH_API_KEY=your_langsmith_api_key
 LANGSMITH_PROJECT=logmind
+```
 
 ## Usage
 
