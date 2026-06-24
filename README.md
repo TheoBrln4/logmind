@@ -105,7 +105,31 @@ This helps focus the investigation on the most relevant signals.
 
 ---
 
-### 4. RCA Agent
+### 4. Temporal Agent
+
+The Temporal Agent analyzes how events evolve over time.
+
+Rather than examining individual log messages in isolation, it identifies temporal behaviors that may indicate an ongoing incident or system degradation.
+
+Its objectives are to:
+
+- Detect bursts of errors
+- Identify recurring failure patterns over time
+- Measure event frequency and trend evolution
+- Highlight abnormal activity spikes
+
+Examples of detected signals include:
+
+- Sudden increases in error rates
+- Repeated failures occurring within short time windows
+- Escalation from warnings to critical errors
+- Persistent degradation patterns
+
+This temporal context provides additional evidence for the RCA Agent and helps distinguish isolated events from systemic incidents.
+
+---
+
+### 5. RCA Agent
 
 The RCA Agent performs Retrieval-Augmented Root Cause Analysis.
 
@@ -120,7 +144,7 @@ This allows LogMind to leverage past incidents when investigating new failures.
 
 ---
 
-### 5. Report Agent
+### 6. Report Agent
 
 Once the analysis is complete, the Report Agent generates a structured investigation report containing:
 
@@ -132,7 +156,7 @@ Once the analysis is complete, the Report Agent generates a structured investiga
 
 ---
 
-### 6. Persist Agent
+### 7. Persist Agent
 
 The Persist Agent stores incident knowledge in ChromaDB.
 
