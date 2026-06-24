@@ -7,15 +7,17 @@ from app.agents.persist_agent import persist_agent
 from app.agents.rca_agent import rca_agent
 from app.agents.report_agent import report_agent
 from app.agents.state import AnalysisState
+from app.agents.temporal_agent import temporal_agent
 
 
 def build_graph() -> StateGraph:
-    """Assemble the LangGraph pipeline: parser → embed → pattern → rca → report → persist."""
+    """Assemble the LangGraph pipeline: parser → embed → pattern → temporal → rca → report → persist."""
     graph = StateGraph(AnalysisState)
 
     graph.add_node("parser", parser_agent)
     graph.add_node("embed", embed_agent)
     graph.add_node("pattern", pattern_agent)
+    graph.add_node("temporal", temporal_agent)
     graph.add_node("rca", rca_agent)
     graph.add_node("report", report_agent)
     graph.add_node("persist", persist_agent)
@@ -23,7 +25,8 @@ def build_graph() -> StateGraph:
     graph.set_entry_point("parser")
     graph.add_edge("parser", "embed")
     graph.add_edge("embed", "pattern")
-    graph.add_edge("pattern", "rca")
+    graph.add_edge("pattern", "temporal")
+    graph.add_edge("temporal", "rca")
     graph.add_edge("rca", "report")
     graph.add_edge("report", "persist")
     graph.add_edge("persist", END)
